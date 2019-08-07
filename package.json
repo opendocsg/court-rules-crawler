@@ -1,0 +1,23 @@
+{
+  "name": "@opendocsg/court-rules-crawler",
+  "version": "1.0.0",
+  "description": "Scrapes Singapore Rules of Court into OpenDoc-compatible Markdown",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/opendocsg/court-rules-crawler.git"
+  },
+  "author": "Open Government Products, Goverment Technology Agency of Singapore (https://open.gov.sg)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/opendocsg/court-rules-crawler/issues"
+  },
+  "homepage": "https://github.com/opendocsg/court-rules-crawler#readme",
+  "dependencies": {
+    "axios": "^0.19.0",
+    "cheerio": "^1.0.0-rc.3"
+  }
+}
