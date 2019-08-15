@@ -44,9 +44,9 @@ function isText (element) {
  * Make a structured provision recursively
  * @param {*} provision
  * @param {*} $
- * @param {*} indent
+ * @param {number} indent
  */
-function makeStructuredProvision (provision, $, indent = -1) {
+function makeStructuredProvision (provision, $, indent = 0) {
   const makeIndent = indent => '>'.repeat(Math.max(indent, 0))
   const markdown = element => turndown.turndown(element.clone().wrap('<span/>').parent().html())
   const content = provision.contents().get()
@@ -55,7 +55,8 @@ function makeStructuredProvision (provision, $, indent = -1) {
       if (isText(element)) {
         return element.text()
       } else if (element.prop('tagName') === 'A') {
-        return '\n\n' + makeIndent(indent)
+        const prevElement = element.prev()
+        return prevElement.prop('tagName') === 'STRONG' ? '' : '\n\n' + makeIndent(indent)
       } else if (element.prop('tagName') === 'DIV' && element.hasClass('table-responsive')) {
         return '\n\n' + makeIndent(indent) + element.children('table').children('tbody').children('tr').children('td').html()
       } else if (element.prop('tagName') === 'DIV' && element.hasClass('amendNote')) {
@@ -71,13 +72,13 @@ function makeStructuredProvision (provision, $, indent = -1) {
           : makeStructuredProvision(children, $, indent + 1)
         return '\n\n' + tableContent
       } else if (element.prop('tagName') === 'SPAN') {
-        return makeStructuredProvision(element, $, indent + 1)
+        return makeStructuredProvision(element, $, indent + 1).replace(new RegExp('^' + makeIndent(indent + 1) + '(.)'), '$1')
       } else {
         return markdown(element)
       }
     })
 
-  return makeIndent(indent) + content.join('') + '\n\n'
+  return makeIndent(indent) + content.join('')
 }
 
 function makeProvision (provision, $) {
