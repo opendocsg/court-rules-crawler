@@ -36,42 +36,48 @@ ${getText(indexData, '.cDate')}
 `
 }
 
-function makeStructuredProvision(provision, $, indent = 0) {
-  const content = provision.contents().get()
-    .filter(e => $(e).prop('tagName') !== 'A')
-    .filter(e => $(e).prop('tagName') !== 'STRONG')
-    .map(e => {
-      let element = $(e)
-      if (!element.prop('tagName')) {
-        return element.text()
-      }
-      if (element.prop('tagName') === 'TABLE') {
-        element = element.children('tbody').children('tr').children('td')
-      }
-      const subContent = element.contents().get()
-        .map(c => {
-          let child = $(c)
-          if (!child.prop('tagName')) {
-            return child.text()
-          } else if (child.prop('tagName') === 'DIV' && child.hasClass('table-responsive')) {
-            return child.children('table').children('tbody').children('tr').children('td').html()
-          } else if (child.prop('tagName') === 'TABLE') {
-            child = child.children('tbody').children('tr').children('td')
-            return makeStructuredProvision(child, $, indent + 1)
-          } else if (child.prop('tagName') === 'EM'){
-            return `_${child.text()}_`
-          } else {
-            return child.get(0).outerHTML
-          }
-        })
+function isText (element) {
+  return element[0].type === 'text'
+}
 
-      // TODO: Join content in smarter fashion
-      return subContent.join('\n\n')
+/**
+ * Make a structured provision recursively
+ * @param {*} provision
+ * @param {*} $
+ * @param {*} indent
+ */
+function makeStructuredProvision (provision, $, indent = -1) {
+  const makeIndent = indent => '>'.repeat(Math.max(indent, 0))
+  const markdown = element => turndown.turndown(element.clone().wrap('<span/>').parent().html())
+  const content = provision.contents().get()
+    .map(e => {
+      const element = $(e)
+      if (isText(element)) {
+        return element.text()
+      } else if (element.prop('tagName') === 'A') {
+        return '\n\n' + makeIndent(indent)
+      } else if (element.prop('tagName') === 'DIV' && element.hasClass('table-responsive')) {
+        return '\n\n' + makeIndent(indent) + element.children('table').children('tbody').children('tr').children('td').html()
+      } else if (element.prop('tagName') === 'DIV' && element.hasClass('amendNote')) {
+        return '  \n' + makeIndent(indent) + markdown(element)
+      } else if (element.prop('tagName') === 'TABLE') {
+        const children = element.children('tbody').children('tr').children('td')
+        const tableContent = children.length > 1
+          ? makeIndent(indent + 1) + children.get()
+            .map(child =>
+              makeStructuredProvision($(child), $, indent + 1).trim().replace(new RegExp('^' + makeIndent(indent + 1) + '(.)'), '$1')
+            )
+            .join(' ')
+          : makeStructuredProvision(children, $, indent + 1)
+        return '\n\n' + tableContent
+      } else if (element.prop('tagName') === 'SPAN') {
+        return makeStructuredProvision(element, $, indent + 1)
+      } else {
+        return markdown(element)
+      }
     })
 
-  const prefix = indent === 0 && provision.children().first().prop('tagName') === 'STRONG'
-    ? `**${provision.children('strong').html()}**` : ''
-  return prefix + content.map(t => '>'.repeat(indent) + t).join('\n\n')
+  return makeIndent(indent) + content.join('') + '\n\n'
 }
 
 function makeProvision (provision, $) {
