@@ -99,10 +99,14 @@ function makeOrderPage (order, $) {
   const title = order.find('.orderHdr').map(function () { return $(this).text() }).get().join(' - ')
   const provisions = order.find('div[class^=prov1] > table > tbody > tr > td')
     .map(function () { return makeProvision($(this), $) })
+    .get()
+  if (provisions.length === 0) {
+    provisions.push(turndown.turndown(order.find('.orderRepealed').html()))
+  }
   const content = '' +
 `# ${title}
 
-${provisions.get().join('\n\n')}
+${provisions.join('\n\n')}
 `
   return { content, title }
 }
