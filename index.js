@@ -1,3 +1,5 @@
+const fs = require('fs')
+
 const axios = require('axios')
 const cheerio = require('cheerio')
 
@@ -9,6 +11,7 @@ turndown.use(turndownPluginGfm.gfm)
 turndown.keep(['sup', 'div'])
 
 const RULES_URL = 'https://sso.agc.gov.sg/SL/SCJA1969-R5'
+const RULES_DIR = 'opendoc-rules-of-court'
 
 function makeIndexPage (rawIndexPage) {
   const getText = (elements, selector) => elements.filter(selector).text().trim()
@@ -93,22 +96,54 @@ function makeProvision (provision, $) {
 }
 
 function makeOrderPage (order, $) {
-  const orderTitle = order.find('.orderHdr').map(function () { return $(this).text() }).get().join(' - ')
+  const title = order.find('.orderHdr').map(function () { return $(this).text() }).get().join(' - ')
   const provisions = order.find('div[class^=prov1] > table > tbody > tr > td')
     .map(function () { return makeProvision($(this), $) })
-  return '' +
-`# ${orderTitle}
+  const content = '' +
+`# ${title}
 
 ${provisions.get().join('\n\n')}
 `
+  return { content, title }
+}
+
+function makeOrder ($, index) {
+  const [ order ] = $('.order').get().map(e => makeOrderPage($(e), $))
+  if (order) {
+    const { content, title } = order
+    const path = `../${RULES_DIR}/${index}-${title}.md`
+    console.log(`Writing to ${path}`)
+    fs.writeFileSync(path, content)
+  }
 }
 
 async function go () {
+  console.log(`Fetching index page from ${RULES_URL}`)
   const { data: rules } = await axios(RULES_URL)
   const $ = cheerio.load(rules)
   const indexPage = makeIndexPage($('#legisContent .front'))
-  const orders = $('#legisContent .body .order').map(function () { return makeOrderPage($(this), $) })
-  console.log(orders[0])
+  const indexPath = `../${RULES_DIR}/index.md`
+  console.log(`Writing to ${indexPath}`)
+  fs.writeFileSync(indexPath, indexPage)
+
+  // The index page contains the first order, so scrape it from there
+  makeOrder($, 1)
+
+  const seriesIds = $('.dms[data-field=seriesId]').map((i, e) => $(e).attr('data-term')).get()
+  const [ { tocSysId, fragments } ] = $('.global-vars').last()
+    .map((i, e) => JSON.parse($(e).attr('data-json')))
+    .get()
+
+  let index = 2
+  for (const seriesId of seriesIds) {
+    const { Item1: fragSysId, Item2: dateString } = fragments[seriesId]
+    const url = `https://sso.agc.gov.sg/Details/GetLazyLoadContent?TocSysId=${tocSysId}&SeriesId=${seriesId}&FragSysId=${fragSysId}&_=${dateString}`
+    console.log(`Fetching ${url}`)
+    const { data: orderPage } = await axios(url)
+    const $ = cheerio.load(orderPage)
+    makeOrder($, index)
+    ++index
+  }
 }
 
 
