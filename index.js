@@ -59,7 +59,7 @@ function makeStructuredProvision (provision, $, indent = 0) {
         return element.text()
       } else if (element.prop('tagName') === 'A') {
         const prevElement = element.prev()
-        return prevElement.prop('tagName') === 'STRONG' ? '' : '\n\n' + makeIndent(indent)
+        return prevElement.length === 0 || prevElement.prop('tagName') === 'STRONG' ? '' : '\n\n' + makeIndent(indent)
       } else if (element.prop('tagName') === 'DIV' && element.hasClass('table-responsive')) {
         return '\n\n' + makeIndent(indent) + element.children('table').children('tbody').children('tr').children('td').html()
       } else if (element.prop('tagName') === 'DIV' && element.hasClass('amendNote')) {
@@ -85,7 +85,7 @@ function makeStructuredProvision (provision, $, indent = 0) {
 }
 
 function makeProvision (provision, $) {
-  if (provision.hasClass('prov1Hdr')) {
+  if (provision.hasClass('prov1Hdr') || provision.hasClass('partHdrIta') || provision.hasClass('partHdrNorm')) {
     return `## ${provision.text()}`
   } else if (!provision.children('a').length) {
     // Simple one-clause provision
@@ -96,8 +96,14 @@ function makeProvision (provision, $) {
 }
 
 function makeOrderPage (order, $) {
-  const title = order.find('.orderHdr').map(function () { return $(this).text() }).get().join(' - ')
-  const provisions = order.find('div[class^=prov1] > table > tbody > tr > td')
+  const title = order.find('.orderHdr')
+    .map(function () {
+      return $(this).html()
+    })
+    .get()
+    .join(' - ')
+    .trim()
+  const provisions = order.find('td.sGrpTail > table > tbody > tr > td, div[class^=prov1] > table > tbody > tr > td')
     .map(function () { return makeProvision($(this), $) })
     .get()
   if (provisions.length === 0) {
@@ -108,7 +114,7 @@ function makeOrderPage (order, $) {
 
 ${provisions.join('\n\n')}
 `
-  return { content, title }
+  return { content, title: title.replace(/<sup>\d+<\/sup>/g, '') }
 }
 
 function makeOrder ($, index) {
