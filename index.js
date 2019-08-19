@@ -87,6 +87,9 @@ function makeStructuredProvision (provision, $, indent = 0) {
 function makeProvision (provision, $) {
   if (provision.hasClass('prov1Hdr') || provision.hasClass('partHdrIta') || provision.hasClass('partHdrNorm')) {
     return `## ${provision.text()}`
+  } else if (provision.hasClass('sProvHdr') || provision.hasClass('sGrpHdrCaps')) {
+    provision.find('br').replaceWith(' ')
+    return `### ${provision.text()}`
   } else if (!provision.children('a').length) {
     // Simple one-clause provision
     return turndown.turndown(provision.html())
@@ -103,9 +106,13 @@ function makeOrderPage (order, $) {
     .get()
     .join(' - ')
     .trim()
-  const provisions = order.find('td.sGrpTail > table > tbody > tr > td, div[class^=prov1] > table > tbody > tr > td')
-    .map(function () { return makeProvision($(this), $) })
+
+  const provisions = order
+    .children()
+    .not((i, e) => $(e).children('tbody').children('tr').children('td').hasClass('appendix'))
+    .find('td.sGrpTail > table > tbody > tr > td, div[class^=prov1] > table > tbody > tr > td')
     .get()
+    .map(e => makeProvision($(e), $))
   if (provisions.length === 0) {
     provisions.push(turndown.turndown(order.find('.orderRepealed').html()))
   }
@@ -117,10 +124,49 @@ ${provisions.join('\n\n')}
   return { content, title: title.replace(/<sup>\d+<\/sup>/g, '') }
 }
 
+function makeOrderAppendix(appendix, $) {
+  const ref = appendix.find('.SbodyRefs').text()
+  const title = appendix.find('td[class^=appendixHdr]')
+    .map(function () {
+      return $(this).text()
+    })
+    .get()
+    .join(' - ')
+    .replace(ref, '')
+    .trim()
+
+  const provisions = appendix
+    .find('.sProvHdr, td.sGrpTail > table > tbody > tr > td, td.tailSTxt, td.sGrpTail > div.table-responsive')
+    .get()
+    .map(e => {
+      const element = $(e)
+      return element.hasClass('table-responsive')
+        ? element.clone().wrap('<span/>').parent()
+        : e
+    })
+    .map(e => makeProvision($(e), $))
+
+  const content = '' +
+`## ${title}
+
+<div class="orderRef">${ref}</div>
+
+${provisions.join('\n\n')}
+
+`
+  return content
+}
+
 function makeOrder ($, index) {
   const [ order ] = $('.order').get().map(e => makeOrderPage($(e), $))
   if (order) {
-    const { content, title } = order
+    let { content, title } = order
+
+    const appendices = $('.order .appendix').get()
+    if (appendices.length > 0) {
+      content += '\n\n' + appendices.map(e => makeOrderAppendix($(e), $)).join('\n\n')
+    }
+
     const path = `../${RULES_DIR}/${index}-${title}.md`
     console.log(`Writing to ${path}`)
     fs.writeFileSync(path, content)
