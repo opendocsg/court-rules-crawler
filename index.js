@@ -55,7 +55,7 @@ function cleanTable (table, $) {
     if (targetCell.find('.sTxtNoLeft, .s1Txt').length > 0) {
       targetCellContent = targetCell.find('.sTxtNoLeft, .s1Txt')
         .get()
-        .map(e => $(e).hasClass('sTxtNoLeft') ? '<tr><td>' + $(e).html() + '&nbsp;</td>' : '<td>' + $(e).html() + '</td></tr>')
+        .map(e => $(e).hasClass('sTxtNoLeft') ? '<span>' + $(e).html() + '&nbsp;</span>' : '<span>' + $(e).html() + '</span>')
         .join('')
     } else {
       targetCellContent = targetCell.find('.fs').html()
