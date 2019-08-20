@@ -151,8 +151,8 @@ function makeOrderPage (order, $) {
     .replace('<br>', '')
     .replace('etc.', 'etc')
     .replace('&#A0;', ' ')
-    .replace('&#2019;', "'")
-    .replace('&#2014;', '-')
+    .replace('&#x2019;', "'")
+    .replace('&#x2014;', '-')
 
   const content = '' +
 `# ${title}
