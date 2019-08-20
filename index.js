@@ -43,13 +43,40 @@ function isText (element) {
   return element[0].type === 'text'
 }
 
+function cleanTable (table, $) {
+  $(table).find('.sTxtNoLeft, .s1Txt').each((i, e) => $(e).removeAttr('style'))
+  $(table).find('.fs').each((i, e) => {
+    const targetCell = $(e)
+      .parent()
+      .parent()
+      .parent()
+      .parent()
+    let targetCellContent
+    if (targetCell.find('.sTxtNoLeft, .s1Txt').length > 0) {
+      targetCellContent = targetCell.find('.sTxtNoLeft, .s1Txt')
+        .get()
+        .map(e => $(e).hasClass('sTxtNoLeft') ? '<tr><td>' + $(e).html() + '&nbsp;</td>' : '<td>' + $(e).html() + '</td></tr>')
+        .join('')
+    } else {
+      targetCellContent = targetCell.find('.fs').html()
+    }
+    return targetCell
+      .removeAttr('style')
+      .removeAttr('id')
+      .html(targetCellContent)
+      .parent()
+      .removeAttr('id')
+  })
+  return $(table)
+}
+
 /**
  * Make a structured provision recursively
  * @param {*} provision
  * @param {*} $
  * @param {number} indent
  */
-function makeStructuredProvision (provision, $, indent = 0) {
+function makeStructuredProvision (provision, $, indent = -1) {
   const makeIndent = indent => '>'.repeat(Math.max(indent, 0))
   const markdown = element => turndown.turndown(element.clone().wrap('<span/>').parent().html())
   const content = provision.contents().get()
@@ -61,7 +88,8 @@ function makeStructuredProvision (provision, $, indent = 0) {
         const prevElement = element.prev()
         return prevElement.length === 0 || prevElement.prop('tagName') === 'STRONG' ? '' : '\n\n' + makeIndent(indent)
       } else if (element.prop('tagName') === 'DIV' && element.hasClass('table-responsive')) {
-        return '\n\n' + makeIndent(indent) + element.children('table').children('tbody').children('tr').children('td').html()
+        const table = element.children('table').children('tbody').children('tr').children('td')
+        return '\n\n' + makeIndent(indent) + cleanTable(table, $).html()
       } else if (element.prop('tagName') === 'DIV' && element.hasClass('amendNote')) {
         return '  \n' + makeIndent(indent) + markdown(element)
       } else if (element.prop('tagName') === 'TABLE') {
@@ -116,12 +144,22 @@ function makeOrderPage (order, $) {
   if (provisions.length === 0) {
     provisions.push(turndown.turndown(order.find('.orderRepealed').html()))
   }
+
+  const titleFileName = title
+    .replace(/<sup>\d+<\/sup>/g, '')
+    .replace(':', '-')
+    .replace('<br>', '')
+    .replace('etc.', 'etc')
+    .replace('&#A0;', ' ')
+    .replace('&#2019;', "'")
+    .replace('&#2014;', '-')
+
   const content = '' +
 `# ${title}
 
 ${provisions.join('\n\n')}
 `
-  return { content, title: title.replace(/<sup>\d+<\/sup>/g, '') }
+  return { content, title: titleFileName }
 }
 
 function makeOrderAppendix(appendix, $) {
